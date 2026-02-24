@@ -11,9 +11,9 @@ import {
   ResetPasswordDto,
   VerifyEmailParamsDto,
 } from './dto';
-import { ErrorResponseDto } from '../common/errors/error.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { Request } from 'express';
+import { ApiStandardErrorResponse } from '../common/errors/api-standard-error-response.decorator';
 
 /**
  * AuthController
@@ -27,7 +27,7 @@ import { Request } from 'express';
 @ApiTags('authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   /**
    * Register a new user account
@@ -49,12 +49,12 @@ export class AuthController {
    * ```
    */
   @Post('register')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Register a new user account',
     description: 'Creates a new user account with email/password. Sends verification email. Password must be at least 8 characters with uppercase, lowercase, number, and special character.'
   })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'User registered successfully. Verification email sent.',
     schema: {
       properties: {
@@ -62,8 +62,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 409, description: 'User with this email already exists.', type: ErrorResponseDto })
-  @ApiResponse({ status: 400, description: 'Validation failed (weak password, invalid email, etc).', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([400, 409])
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
@@ -80,12 +79,12 @@ export class AuthController {
    */
   @Post('login')
   @UseGuards(LoginAttemptsGuard)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Login with email and password',
     description: 'Authenticates user with email and password. Returns access token (valid 15m) and refresh token (valid 7d). Rate limit: 5 attempts per 10 minutes.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Login successful.',
     schema: {
       properties: {
@@ -95,8 +94,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials or too many attempts.', type: ErrorResponseDto })
-  @ApiResponse({ status: 400, description: 'Validation failed.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([400, 401])
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login({
@@ -115,12 +113,12 @@ export class AuthController {
    * @returns {Promise<{access_token: string, refresh_token: string, user: object}>} Auth tokens
    */
   @Post('web3-login')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Web3 wallet login',
     description: 'Authenticates user via blockchain wallet signature. Creates account automatically if wallet not registered. Supports Ethereum-based networks.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Web3 login successful.',
     schema: {
       properties: {
@@ -130,7 +128,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Invalid wallet address or signature.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async web3Login(@Body() loginDto: LoginWeb3Dto) {
     return this.authService.login({
@@ -149,12 +147,12 @@ export class AuthController {
    * @returns {Promise<{access_token: string, refresh_token: string}>} New token pair
    */
   @Post('refresh-token')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Refresh access token',
     description: 'Exchanges refresh token for new access token. Implements token rotation.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Token refreshed successfully.',
     schema: {
       properties: {
@@ -164,7 +162,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
@@ -182,12 +180,12 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Logout current user',
     description: 'Invalidates current session by blacklisting tokens. Requires valid access token.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Logged out successfully.',
     schema: {
       properties: {
@@ -195,7 +193,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request) {
     const user = req['user'] as any;
@@ -214,12 +212,12 @@ export class AuthController {
    * @returns {Promise<{message: string}>} Generic success message
    */
   @Post('forgot-password')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Request password reset email',
     description: 'Sends password reset link to user email. Returns generic message for security.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Password reset email sent (if email exists).',
     schema: {
       properties: {
@@ -242,12 +240,12 @@ export class AuthController {
    * @returns {Promise<{message: string}>} Success message
    */
   @Put('reset-password')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Reset password using reset token',
     description: 'Sets new password using token from password reset email. Token valid for 1 hour.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Password reset successfully.',
     schema: {
       properties: {
@@ -255,7 +253,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 400, description: 'Invalid, expired, or already-used reset token.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([400])
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
@@ -271,12 +269,12 @@ export class AuthController {
    * @returns {Promise<{message: string}>} Verification success message
    */
   @Get('verify-email/:token')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Verify email address',
     description: 'Confirms email ownership using token from verification email. Token valid for 1 hour.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Email verified successfully.',
     schema: {
       properties: {
@@ -284,7 +282,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 400, description: 'Invalid, expired, or already-used verification token.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([400])
   async verifyEmail(@Param() params: VerifyEmailParamsDto) {
     return this.authService.verifyEmail(params.token);
   }
@@ -301,12 +299,12 @@ export class AuthController {
   @Get('sessions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all active sessions for current user',
     description: 'Lists all active sessions with IP, user agent, and expiration time.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Sessions retrieved successfully.',
     schema: {
       type: 'array',
@@ -322,7 +320,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async getSessions(@Req() req: Request) {
     const user = req['user'] as any;
@@ -342,12 +340,12 @@ export class AuthController {
   @Delete('sessions/:sessionId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Invalidate a specific session',
     description: 'Logs out a specific device/session without affecting other user sessions.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Session invalidated successfully.',
     schema: {
       properties: {
@@ -355,7 +353,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async invalidateSession(@Req() req: Request, @Param('sessionId') sessionId: string) {
     const user = req['user'] as any;
@@ -375,12 +373,12 @@ export class AuthController {
   @Delete('sessions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Invalidate all sessions for current user',
     description: 'Logs out all devices/sessions. Useful after password change or security incident.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'All sessions invalidated successfully.',
     schema: {
       properties: {
@@ -388,7 +386,7 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized.', type: ErrorResponseDto })
+  @ApiStandardErrorResponse([401])
   @HttpCode(HttpStatus.OK)
   async invalidateAllSessions(@Req() req: Request) {
     const user = req['user'] as any;
