@@ -21,6 +21,8 @@ describe('AuthService', () => {
       get: jest.fn(),
       del: jest.fn(),
       keys: jest.fn(),
+      exists: jest.fn(),
+      expire: jest.fn(),
     };
 
     configMock = {
@@ -32,6 +34,7 @@ describe('AuthService', () => {
         if (key === 'JWT_EXPIRES_IN') return '15m';
         if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
         if (key === 'SESSION_TIMEOUT') return 3600;
+        if (key === 'SESSION_ABSOLUTE_TIMEOUT') return 86400;
         return null;
       }),
     };
@@ -99,17 +102,38 @@ describe('AuthService', () => {
       jest.spyOn(userService, 'findById').mockResolvedValue(user as any);
       redisMock.get.mockImplementation(async (key: string) => {
         if (key.startsWith('refresh_session:')) {
-          return 'u1';
+          return JSON.stringify({
+            userId: 'u1',
+            sessionId: 'session-1',
+            fingerprint: authService['buildFingerprint']({ ip: '127.0.0.1', userAgent: 'jest' }),
+          });
         }
         if (key.startsWith('user_refresh_rid:')) {
           return 'rid-1';
+        }
+        if (key.startsWith('active_session:u1:session-1')) {
+          return JSON.stringify({
+            sessionId: 'session-1',
+            userId: 'u1',
+            jti: 'jti-1',
+            refreshSessionId: 'rid-1',
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            userAgent: 'jest',
+            ip: '127.0.0.1',
+            absoluteExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+            fingerprint: authService['buildFingerprint']({ ip: '127.0.0.1', userAgent: 'jest' }),
+          });
+        }
+        if (key.startsWith('access_session:jti-1')) {
+          return 'session-1';
         }
         return null;
       });
       redisMock.del.mockResolvedValue(1);
       redisMock.setex.mockResolvedValue(undefined);
 
-      const result = await authService.refreshToken('valid-refresh');
+      const result = await authService.refreshToken('valid-refresh', { ip: '127.0.0.1', userAgent: 'jest' });
 
       expect(result.access_token).toBeDefined();
       expect(result.refresh_token).toBeDefined();
@@ -124,13 +148,17 @@ describe('AuthService', () => {
       jest.spyOn(authService, 'validateUserByEmail').mockResolvedValue(null);
       redisMock.get.mockResolvedValue('0');
 
-      await expect(authService.login(creds)).rejects.toThrow('The provided credentials are invalid');
+      await expect(authService.login(creds, { ip: '127.0.0.1', userAgent: 'jest' })).rejects.toThrow(
+        'The provided credentials are invalid',
+      );
       expect(redisMock.setex).toHaveBeenCalledWith('login_attempts:foo@bar.com', 600, '1');
     });
 
     it('should block when max attempts reached', async () => {
       redisMock.get.mockResolvedValue('5');
-      await expect(authService.login(creds)).rejects.toThrow('Too many login attempts');
+      await expect(authService.login(creds, { ip: '127.0.0.1', userAgent: 'jest' })).rejects.toThrow(
+        'Too many login attempts',
+      );
     });
 
     it('should clear attempts after successful login', async () => {
@@ -139,8 +167,37 @@ describe('AuthService', () => {
       redisMock.get.mockResolvedValue('2');
       // jwtService.sign is already a jest.fn(), so generateTokens will run without errors
 
-      await authService.login(creds);
+      await authService.login(creds, { ip: '127.0.0.1', userAgent: 'jest' });
       expect(redisMock.del).toHaveBeenCalledWith('login_attempts:foo@bar.com');
+    });
+  });
+
+  describe('session validation', () => {
+    it('rejects fingerprint mismatches to reduce session hijacking risk', async () => {
+      redisMock.get.mockImplementation(async (key: string) => {
+        if (key === 'access_session:jti-1') {
+          return 'session-1';
+        }
+        if (key === 'active_session:u1:session-1') {
+          return JSON.stringify({
+            sessionId: 'session-1',
+            userId: 'u1',
+            jti: 'jti-1',
+            refreshSessionId: 'rid-1',
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            userAgent: 'browser-a',
+            ip: '127.0.0.1',
+            absoluteExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+            fingerprint: authService['buildFingerprint']({ ip: '127.0.0.1', userAgent: 'browser-a' }),
+          });
+        }
+        return null;
+      });
+
+      await expect(
+        authService.validateActiveSession('u1', 'jti-1', 'session-1', { ip: '127.0.0.1', userAgent: 'browser-b' }),
+      ).rejects.toThrow('Session validation failed');
     });
   });
 });

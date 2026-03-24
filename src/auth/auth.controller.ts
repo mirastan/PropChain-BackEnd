@@ -442,7 +442,9 @@ export class AuthController {
 
     return {
       ip,
-      userAgent: req.headers['user-agent'] || 'unknown',
+      userAgent: Array.isArray(req.headers['user-agent'])
+        ? req.headers['user-agent'][0]
+        : req.headers['user-agent'] || 'unknown',
     };
   }
 }
