@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { PropertyStatus } from '../dto/create-property.dto';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { PropertySearchDto } from '../dto/property-search.dto';
@@ -9,6 +10,7 @@ export class PropertySearchService {
     private readonly prisma: PrismaService,
     private readonly analytics: SearchAnalyticsService,
   ) {}
+
   async search(dto: PropertySearchDto, userId?: string) {
     const {
       latitude,
@@ -19,9 +21,10 @@ export class PropertySearchService {
       minPrice,
       maxPrice,
       location,
-      status = PropertyStatus.AVAILABLE,
+      status: dtoStatus = PropertyStatus.AVAILABLE,
     } = dto;
 
+    const status = this.mapPropertyStatus(dtoStatus);
     const offset = (page - 1) * limit;
 
     // Geospatial search
@@ -72,9 +75,10 @@ export class PropertySearchService {
       minPrice,
       maxPrice,
       location,
-      status = PropertyStatus.AVAILABLE,
+      status: dtoStatus = PropertyStatus.AVAILABLE,
     } = dto;
 
+    const status = this.mapPropertyStatus(dtoStatus);
     const offset = (page - 1) * limit;
 
     return this.prisma.$queryRawUnsafe(`
@@ -110,10 +114,9 @@ export class PropertySearchService {
     } = dto;
 
     const status = this.mapPropertyStatus(dtoStatus);
-
     const offset = (page - 1) * limit;
 
-    return this.prisma.property.findMany({
+    return (this.prisma as any).property.findMany({
       where: {
         status,
         ...(location && { location: { contains: location, mode: 'insensitive' } }),
