@@ -8,8 +8,8 @@ import { getMultipleFileUploadOptions, getSingleFileUploadOptions } from '../../
 export class DocumentFilesUploadInterceptor implements NestInterceptor {
   constructor(private readonly configService: ConfigService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const MulterInterceptorClass = FilesInterceptor('files', undefined, getMultipleFileUploadOptions(this.configService));
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> | Promise<Observable<any>> {
+    const MulterInterceptorClass = FilesInterceptor('files', 10, getMultipleFileUploadOptions(this.configService));
     const multerInterceptor: NestInterceptor = new MulterInterceptorClass();
     return multerInterceptor.intercept(context, next);
   }
@@ -19,8 +19,8 @@ export class DocumentFilesUploadInterceptor implements NestInterceptor {
 export class DocumentFileUploadInterceptor implements NestInterceptor {
   constructor(private readonly configService: ConfigService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const MulterInterceptorClass = FileInterceptor('file', undefined, getSingleFileUploadOptions(this.configService));
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> | Promise<Observable<any>> {
+    const MulterInterceptorClass = FileInterceptor('file', getSingleFileUploadOptions(this.configService));
     const multerInterceptor: NestInterceptor = new MulterInterceptorClass();
     return multerInterceptor.intercept(context, next);
   }
