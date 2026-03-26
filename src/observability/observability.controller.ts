@@ -10,8 +10,8 @@ declare const process: {
   NODE_ENV?: string;
 };
 
-// Simple admin guard for demonstration
-const UseGuards = () => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+// Simple admin guard decorator for demonstration
+const AdminGuard = () => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
   // In production, implement proper authentication
   return descriptor;
 };
@@ -60,7 +60,7 @@ export class ObservabilityController {
   }
 
   @Get('tracing/status')
-  @UseGuards()
+  @AdminGuard()
   @ApiOperation({ summary: 'Get tracing service status' })
   @ApiResponse({ status: 200, description: 'Tracing status retrieved successfully' })
   async getTracingStatus() {

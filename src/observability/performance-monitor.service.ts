@@ -11,6 +11,18 @@ interface MemoryUsage {
   arrayBuffers: number;
 }
 
+interface CpuInfo {
+  model: string;
+  speed: number;
+  times: {
+    user: number;
+    nice: number;
+    sys: number;
+    idle: number;
+    irq: number;
+  };
+}
+
 declare const process: {
   env: Record<string, string | undefined>;
   uptime: () => number;
@@ -22,54 +34,6 @@ declare const process: {
 declare const require: {
   (id: string): any;
 };
-
-declare const os: {
-  cpus: () => any[];
-  loadavg: () => number[];
-  totalmem: () => number;
-  freemem: () => number;
-};
-
-declare const fs: {
-  statSync: (path: string) => any;
-};
-
-declare const path: {
-  join: (...paths: string[]) => string;
-};
-
-declare const setInterval: (callback: () => void, ms: number) => any;
-declare const clearInterval: (id: any) => void;
-
-export interface PerformanceMetrics {
-  timestamp: Date;
-  cpu: {
-    usage: number;
-    loadAverage: number[];
-  };
-  memory: {
-    used: number;
-    free: number;
-    total: number;
-    usage: number;
-  };
-  disk: {
-    used: number;
-    free: number;
-    total: number;
-    usage: number;
-  };
-  network: {
-    connections: number;
-    requestsPerSecond: number;
-  };
-  application: {
-    uptime: number;
-    activeRequests: number;
-    errorRate: number;
-    responseTime: number;
-  };
-}
 
 @Injectable()
 export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy {
@@ -140,46 +104,65 @@ export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy 
   }
 
   private getCpuMetrics() {
-    const cpus = os.cpus();
-    const loadAvg = os.loadavg();
-    
-    // Calculate CPU usage (simplified)
-    let totalIdle = 0;
-    let totalTick = 0;
-    
-    cpus.forEach(cpu => {
-      for (const type in cpu.times) {
-        totalTick += cpu.times[type as keyof typeof cpu.times];
-      }
-      totalIdle += cpu.times.idle;
-    });
-    
-    const idle = totalIdle / cpus.length;
-    const total = totalTick / cpus.length;
-    const usage = 100 - (100 * idle / total);
+    try {
+      const os = require('os');
+      const cpus: CpuInfo[] = os.cpus();
+      const loadAvg = os.loadavg();
+      
+      // Calculate CPU usage (simplified)
+      let totalIdle = 0;
+      let totalTick = 0;
+      
+      cpus.forEach(cpu => {
+        for (const type in cpu.times) {
+          totalTick += cpu.times[type as keyof typeof cpu.times];
+        }
+        totalIdle += cpu.times.idle;
+      });
+      
+      const idle = totalIdle / cpus.length;
+      const total = totalTick / cpus.length;
+      const usage = 100 - (100 * idle / total);
 
-    return {
-      usage: Math.round(usage * 100) / 100,
-      loadAverage: loadAvg,
-    };
+      return {
+        usage: Math.round(usage * 100) / 100,
+        loadAverage: loadAvg,
+      };
+    } catch (error) {
+      return {
+        usage: 0,
+        loadAverage: [0, 0, 0],
+      };
+    }
   }
 
   private getMemoryMetrics() {
-    const total = os.totalmem();
-    const free = os.freemem();
-    const used = total - free;
-    const usage = (used / total) * 100;
+    try {
+      const os = require('os');
+      const total = os.totalmem();
+      const free = os.freemem();
+      const used = total - free;
+      const usage = (used / total) * 100;
 
-    return {
-      used: Math.round(used / 1024 / 1024), // MB
-      free: Math.round(free / 1024 / 1024), // MB
-      total: Math.round(total / 1024 / 1024), // MB
-      usage: Math.round(usage * 100) / 100,
-    };
+      return {
+        used: Math.round(used / 1024 / 1024), // MB
+        free: Math.round(free / 1024 / 1024), // MB
+        total: Math.round(total / 1024 / 1024), // MB
+        usage: Math.round(usage * 100) / 100,
+      };
+    } catch (error) {
+      return {
+        used: 0,
+        free: 0,
+        total: 0,
+        usage: 0,
+      };
+    }
   }
 
   private getDiskMetrics() {
     try {
+      const fs = require('fs');
       const stats = fs.statSync(process.cwd());
       // This is a simplified disk usage calculation
       // In production, you might want to use a more sophisticated approach
@@ -417,4 +400,34 @@ export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy 
       metrics: current,
     };
   }
+}
+
+export interface PerformanceMetrics {
+  timestamp: Date;
+  cpu: {
+    usage: number;
+    loadAverage: number[];
+  };
+  memory: {
+    used: number;
+    free: number;
+    total: number;
+    usage: number;
+  };
+  disk: {
+    used: number;
+    free: number;
+    total: number;
+    usage: number;
+  };
+  network: {
+    connections: number;
+    requestsPerSecond: number;
+  };
+  application: {
+    uptime: number;
+    activeRequests: number;
+    errorRate: number;
+    responseTime: number;
+  };
 }

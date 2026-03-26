@@ -14,6 +14,10 @@ declare const process: {
   exit: (code?: number) => void;
 };
 
+declare const require: {
+  (id: string): any;
+};
+
 @Injectable()
 export class TracingService {
   private sdk: NodeSDK;
@@ -114,14 +118,27 @@ export class TracingService {
   }
 
   createSpan(name: string, attributes?: Record<string, any>) {
-    const { trace } = require('@opentelemetry/api');
-    const tracer = trace.getTracer('propchain-backend');
-    
-    return tracer.startSpan(name, {
-      attributes: {
-        ...attributes,
-        'service.name': process.env.OTEL_SERVICE_NAME || 'propchain-backend',
-      },
-    });
+    try {
+      const { trace } = require('@opentelemetry/api');
+      const tracer = trace.getTracer('propchain-backend');
+      
+      return tracer.startSpan(name, {
+        attributes: {
+          ...attributes,
+          'service.name': process.env.OTEL_SERVICE_NAME || 'propchain-backend',
+        },
+      });
+    } catch (error) {
+      console.warn('Failed to create span:', error);
+      // Return a mock span object for fallback
+      return {
+        setAttributes: () => {},
+        setAttribute: () => {},
+        addEvent: () => {},
+        recordException: () => {},
+        setStatus: () => {},
+        end: () => {},
+      };
+    }
   }
 }
