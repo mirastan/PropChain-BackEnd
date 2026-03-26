@@ -57,6 +57,9 @@ import { FeatureFlagModule } from './feature-flags/feature-flag.module';
 // Static Cache
 import { StaticCacheModule } from './static-cache/static-cache.module';
 
+// Data Export
+import { ExportModule } from './export/export.module';
+
 // Middleware
 import { AuthRateLimitMiddleware } from './auth/middleware/auth.middleware';
 import { HeaderValidationMiddleware } from './security/middleware/header-validation.middleware';
@@ -153,6 +156,9 @@ import { ObservabilityModule } from './observability/observability.module';
 
     // Static Cache
     StaticCacheModule,
+
+    // Data Export
+    ExportModule,
   ],
   controllers: [
     AuditController, // Add the audit controller
