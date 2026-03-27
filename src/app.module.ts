@@ -1,4 +1,9 @@
-import { Module, NestModule, MiddlewareConsumer, ClassSerializerInterceptor } from '@nestjs/common';
+import {
+  Module,
+  NestModule,
+  MiddlewareConsumer,
+  ClassSerializerInterceptor,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -24,7 +29,12 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { AllExceptionsFilter } from './common/errors/error.filter';
 
 // I18n
-import { I18nModule, AcceptLanguageResolver, QueryResolver, HeaderResolver } from 'nestjs-i18n';
+import {
+  I18nModule,
+  AcceptLanguageResolver,
+  QueryResolver,
+  HeaderResolver,
+} from 'nestjs-i18n';
 import * as path from 'path';
 
 // Redis
@@ -35,6 +45,8 @@ import { createRedisConfig } from './common/services/redis.config';
 import { PropertiesModule } from './properties/properties.module';
 import { UsersModule } from './users/users.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { DonationsModule } from './donations/donations.module';
+import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { AuthModule } from './auth/auth.module';
 import { FilesModule } from './files/files.module';
@@ -61,6 +73,10 @@ import { StaticCacheModule } from './static-cache/static-cache.module';
 // Data Export
 import { ExportModule } from './export/export.module';
 
+// Compression
+import { CompressionModule } from './common/modules/compression.module';
+import { CompressionController } from './common/controllers/compression.controller';
+
 // Middleware
 import { AuthRateLimitMiddleware } from './auth/middleware/auth.middleware';
 import { HeaderValidationMiddleware } from './security/middleware/header-validation.middleware';
@@ -81,8 +97,8 @@ import { BoundaryValidationModule } from './common/validation';
         '.env.local',
         '.env',
       ],
-      cache: true, // Enable configuration caching
-      expandVariables: true, // Allow environment variable expansion
+      cache: true,
+      expandVariables: true,
     }),
 
     ConfigurationModule,
@@ -97,7 +113,11 @@ import { BoundaryValidationModule } from './common/validation';
           watch: true,
         },
       }),
-      resolvers: [{ use: QueryResolver, options: ['lang'] }, AcceptLanguageResolver, new HeaderResolver(['x-lang'])],
+      resolvers: [
+        { use: QueryResolver, options: ['lang'] },
+        AcceptLanguageResolver,
+        new HeaderResolver(['x-lang']),
+      ],
       inject: [ConfigService],
     }),
 
@@ -146,7 +166,7 @@ import { BoundaryValidationModule } from './common/validation';
     FilesModule,
     ValuationModule,
     DocumentsModule,
-    SecurityModule, // Add security module
+    SecurityModule,
 
     // Compliance & Security
     AuditModule,
@@ -164,9 +184,17 @@ import { BoundaryValidationModule } from './common/validation';
 
     // Data Export
     ExportModule,
+
+    // Donations
+    DonationsModule,
+    WithdrawalsModule,
+
+    // Compression
+    CompressionModule,
   ],
   controllers: [
-    AuditController, // Add the audit controller
+    AuditController,
+    CompressionController,
   ],
   providers: [
     {
@@ -194,13 +222,10 @@ import { BoundaryValidationModule } from './common/validation';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
-      // Static content caching
       .apply(StaticCacheMiddleware)
       .forRoutes('*')
-      // Header validation for security
       .apply(HeaderValidationMiddleware)
       .forRoutes('*')
-      // Auth rate limiting
       .apply(AuthRateLimitMiddleware)
       .forRoutes('/auth*');
   }

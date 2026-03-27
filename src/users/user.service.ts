@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { MultiLevelCacheService } from '../common/cache/multi-level-cache.service';
 import { BaseService } from '../common/services/base.service';
 import { BoundaryValidationService } from '../common/validation';
+import { UserPreferences, PrivacySettings, TransactionMetadata } from '../utils/type-validation.utils';
 
 /**
  * UserService
@@ -106,9 +107,31 @@ export class UserService extends BaseService {
       }
     }
 
+
+    // === UNIQUENESS VALIDATION ===
+    // Prevents duplicate accounts with same email or wallet address
+    const existingUser = await this.prisma.executeWithTimeout(
+      this.prisma.user.findFirst({
+        where: {
+          OR: [{ email }, ...(walletAddress ? [{ walletAddress }] : [])],
+        },
+      }),
+      5000 // 5 second timeout for uniqueness check
+    );
+
+    if (existingUser) {
+      throw new ConflictException('User with this email or wallet address already exists');
+    }
+
+    // === PASSWORD HASHING ===
+    // Uses bcrypt for secure password hashing
+    // Salt rounds configurable via BCRYPT_ROUNDS (default: 12, minimum: 12)
+    // Higher = more secure but slower
+
     const bcryptRounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
     const effectiveRounds = Math.max(bcryptRounds, 12);
     const hashedPassword = await bcrypt.hash(password, effectiveRounds);
+
 
     const user = await this.transactionManager.execute(
       'create-user',
@@ -143,6 +166,19 @@ export class UserService extends BaseService {
         return newUser;
       },
       { timeout: 10000, maxRetries: 3 },
+
+    // Create user with hashed password
+    const user = await this.prisma.executeWithTimeout(
+      this.prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          walletAddress,
+          role: 'USER', // Default role
+        },
+      }),
+      5000 // 5 second timeout for user creation
+
     );
 
     await this.invalidateUserReadCaches(user.id);
@@ -167,15 +203,21 @@ export class UserService extends BaseService {
     password: string | null;
     role: string;
     isVerified: boolean;
-    [key: string]: any;
+    firstName: string;
+    lastName: string;
+    createdAt: Date;
+    updatedAt: Date;
   } | null> {
     return this.cacheService.wrap(
       `user:email:${email}`,
       () =>
         this.monitorQuery('users.findByEmail', { email }, () =>
-          this.prisma.user.findUnique({
-            where: { email },
-          }),
+          this.prisma.executeWithTimeout(
+            this.prisma.user.findUnique({
+              where: { email },
+            }),
+            3000 // 3 second timeout for user lookup
+          )
         ),
       { l1Ttl: 60, l2Ttl: 300, tags: ['user'] },
     );
@@ -214,9 +256,12 @@ export class UserService extends BaseService {
       `user:detail:${id}`,
       () =>
         this.monitorQuery('users.findById', { userId: id }, () =>
-          this.prisma.user.findUnique({
-            where: { id },
-          }),
+          this.prisma.executeWithTimeout(
+            this.prisma.user.findUnique({
+              where: { id },
+            }),
+            3000 // 3 second timeout for user lookup
+          )
         ),
       { l1Ttl: 60, l2Ttl: 300, tags: ['user', `user:${id}`] },
     );
@@ -246,9 +291,12 @@ export class UserService extends BaseService {
       `user:wallet:${walletAddress}`,
       () =>
         this.monitorQuery('users.findByWalletAddress', { walletAddress }, () =>
-          this.prisma.user.findUnique({
-            where: { walletAddress },
-          }),
+          this.prisma.executeWithTimeout(
+            this.prisma.user.findUnique({
+              where: { walletAddress },
+            }),
+            3000 // 3 second timeout for wallet lookup
+          )
         ),
       { l1Ttl: 60, l2Ttl: 300, tags: ['user'] },
     );
@@ -287,6 +335,7 @@ export class UserService extends BaseService {
     const effectiveRounds = Math.max(bcryptRounds, 12);
     const hashedPassword = await bcrypt.hash(newPassword, effectiveRounds);
 
+
     const updatedUser = await this.transactionManager.execute(
       'update-password',
       async ctx => {
@@ -305,6 +354,15 @@ export class UserService extends BaseService {
         return user;
       },
       { timeout: 10000, maxRetries: 3 },
+
+    // Update user password
+    const updatedUser = await this.prisma.executeWithTimeout(
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      }),
+      5000 // 5 second timeout for password update
+
     );
 
     await this.invalidateUserReadCaches(userId);
@@ -406,7 +464,7 @@ export class UserService extends BaseService {
   /**
    * Update user preferences (JSON)
    */
-  async updatePreferences(userId: string, preferences: any) {
+  async updatePreferences(userId: string, preferences: UserPreferences) {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { preferences },
@@ -418,7 +476,7 @@ export class UserService extends BaseService {
   /**
    * Track user activity
    */
-  async logActivity(userId: string, action: string, metadata?: any) {
+  async logActivity(userId: string, action: string, metadata?: TransactionMetadata) {
     const activity = await this.prisma.userActivity.create({
       data: { userId, action, metadata },
     });
@@ -518,7 +576,28 @@ export class UserService extends BaseService {
    * List followers of a user
    */
   async getFollowers(userId: string, limit = 50) {
-    const query: any = {
+    const query: {
+      where: { followingId: string; status: string };
+      take: number;
+      orderBy: { createdAt: string };
+      relationLoadStrategy: string;
+      select: {
+        id: boolean;
+        createdAt: boolean;
+        status: boolean;
+        follower: {
+          select: {
+            id: boolean;
+            email: boolean;
+            role: boolean;
+            bio: boolean;
+            location: boolean;
+            avatarUrl: boolean;
+            isVerified: boolean;
+          };
+        };
+      };
+    } = {
       where: { followingId: userId, status: 'active' },
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -553,7 +632,28 @@ export class UserService extends BaseService {
    * List users a user is following
    */
   async getFollowing(userId: string, limit = 50) {
-    const query: any = {
+    const query: {
+      where: { followerId: string; status: string };
+      take: number;
+      orderBy: { createdAt: string };
+      relationLoadStrategy: string;
+      select: {
+        id: boolean;
+        createdAt: boolean;
+        status: boolean;
+        following: {
+          select: {
+            id: boolean;
+            email: boolean;
+            role: boolean;
+            bio: boolean;
+            location: boolean;
+            avatarUrl: boolean;
+            isVerified: boolean;
+          };
+        };
+      };
+    } = {
       where: { followerId: userId, status: 'active' },
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -607,7 +707,7 @@ export class UserService extends BaseService {
   /**
    * Update privacy settings
    */
-  async updatePrivacySettings(userId: string, privacySettings: any) {
+  async updatePrivacySettings(userId: string, privacySettings: PrivacySettings) {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { privacySettings },

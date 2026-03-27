@@ -128,6 +128,7 @@ model Property {
   transactions      Transaction[]
   valuations        PropertyValuation[]
   documents         Document[]
+  withdrawals       Withdrawal[]
 
   latitude   Float?
   longitude  Float?
@@ -205,6 +206,59 @@ model Transaction {
   // Consider adding an index on txHash if you often search by transaction hash
   @@index([txHash])
   @@map("transactions")
+}
+
+model Donation {
+  id                    String         @id @default(cuid())
+  provider              String
+  providerTransactionId String         @unique @map("provider_transaction_id")
+  amount                Decimal
+  currency              String
+  donorName             String?        @map("donor_name")
+  donorEmail            String?        @map("donor_email")
+  blockchainHash        String?        @map("blockchain_hash")
+  status                DonationStatus @default(PENDING)
+  userId                String?        @map("user_id")
+  projectId             String?        @map("project_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project  Property? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([provider])
+  @@index([status])
+  @@index([userId])
+  @@index([projectId])
+  @@map("donations")
+}
+
+enum DonationStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  projectId       String?          @map("project_id")
+  amount          Decimal
+  status          WithdrawalStatus @default(PENDING)
+  transactionHash String?          @map("transaction_hash")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  project Property? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("withdrawals")
 }
 
 model Role {

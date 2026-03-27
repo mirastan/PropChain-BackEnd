@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { IsString, IsOptional, IsBoolean, IsArray, IsDate, IsNumber, MaxLength, IsEmail } from 'class-validator';
+import { UserPreferences, PrivacySettings } from '../../utils/type-validation.utils';
+
 
 @Exclude()
 export class UserResponseDto {
@@ -82,9 +84,13 @@ export class UserResponseDto {
     example: '{ "theme": "dark", "notifications": true }',
     type: Object,
   })
+
   @IsOptional()
   @Transform(({ value }) => value ?? {})
   preferences?: Record<string, any>;
+
+  preferences?: UserPreferences;
+
 
   @Expose()
   @ApiPropertyOptional({
@@ -92,9 +98,13 @@ export class UserResponseDto {
     example: '{ "profileVisible": true }',
     type: Object,
   })
+
   @IsOptional()
   @Transform(({ value }) => value ?? {})
   privacySettings?: Record<string, any>;
+
+  privacySettings?: PrivacySettings;
+
 
   @Expose()
   @ApiPropertyOptional({
