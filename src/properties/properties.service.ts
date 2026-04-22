@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../types/prisma.types';
 import { PrismaService } from '../database/prisma.service';
 import { CreatePropertyDto, UpdatePropertyDto } from './dto/property.dto';
 

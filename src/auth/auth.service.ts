@@ -5,7 +5,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiKey, Prisma, TokenType, User } from '@prisma/client';
+import { ApiKey, TokenType, User } from '../types/prisma.types';
+import { Prisma } from '../types/prisma.types';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../database/prisma.service';
@@ -69,6 +70,16 @@ export class AuthService {
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d',
       7 * 24 * 60 * 60,
     );
+  }
+
+  private transactionsToActivityItems(transactions: any[], type: string) {
+    return transactions.map((transaction) => ({
+      type: 'transaction' as const,
+      id: transaction.id,
+      title: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${transaction.id}`,
+      description: `Amount: ${transaction.amount}, Status: ${transaction.status}`,
+      createdAt: transaction.createdAt,
+    }));
   }
 
   async register(data: RegisterDto) {
@@ -235,7 +246,7 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const [properties, buyerTransactions, sellerTransactions, documents, apiKeys] = await Promise.all([
+    const [, buyerTransactions, sellerTransactions, documents, apiKeys] = await Promise.all([
       this.prisma.property.findMany({
         where: { ownerId: user.sub },
         orderBy: { createdAt: 'desc' },
@@ -338,9 +349,9 @@ export class AuthService {
     });
 
     const recentActivity = [
-      ...transactionsToActivityItems(buyerTransactions, 'purchase'),
-      ...transactionsToActivityItems(sellerTransactions, 'sale'),
-      ...documents.map((doc) => ({
+      ...this.transactionsToActivityItems(buyerTransactions, 'purchase'),
+      ...this.transactionsToActivityItems(sellerTransactions, 'sale'),
+      ...documents.map((doc: any) => ({
         type: 'document' as const,
         id: doc.id,
         title: doc.fileName,
@@ -364,7 +375,7 @@ export class AuthService {
         apiKeysCount: apiKeys.length,
       },
       recentActivity,
-      recommendations: recommendationProperties.map((p) => ({
+      recommendations: recommendationProperties.map((p: any) => ({
         id: p.id,
         title: p.title,
         address: p.address,

@@ -70,7 +70,7 @@ export class DashboardService {
     });
 
     const totalProperties = properties.length;
-    const activeListings = properties.filter((p) => p.status === 'ACTIVE').length;
+    const activeListings = properties.filter((p: any) => p.status === 'ACTIVE').length;
 
     // Get user's transactions (both as buyer and seller)
     const buyerTransactions = await this.prisma.transaction.findMany({
@@ -148,7 +148,8 @@ export class DashboardService {
     for (const transaction of recentTransactions) {
       const isBuyer = transaction.buyerId === userId;
       const role = isBuyer ? 'bought' : 'sold';
-      const type = transaction.status === 'COMPLETED' ? 'transaction_completed' : 'transaction_pending';
+      const type =
+        transaction.status === 'COMPLETED' ? 'transaction_completed' : 'transaction_pending';
 
       activities.push({
         id: transaction.id,
@@ -164,7 +165,10 @@ export class DashboardService {
     return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, limit);
   }
 
-  private async getRecommendations(userId: string, limit: number = 5): Promise<RecommendationItemDto[]> {
+  private async getRecommendations(
+    userId: string,
+    limit: number = 5,
+  ): Promise<RecommendationItemDto[]> {
     // Get user's owned properties to understand their market segment
     const userProperties = await this.prisma.property.findMany({
       where: { ownerId: userId },
@@ -182,7 +186,7 @@ export class DashboardService {
         take: limit,
       });
 
-      return recommendations.map((prop) => ({
+      return recommendations.map((prop: any) => ({
         id: prop.id,
         title: prop.title,
         address: prop.address,
@@ -201,7 +205,7 @@ export class DashboardService {
       where: {
         status: 'ACTIVE',
         ownerId: { not: userId },
-        OR: userProperties.map((prop) => ({
+        OR: userProperties.map((prop: any) => ({
           AND: [
             { city: prop.city },
             { state: prop.state },
@@ -213,7 +217,7 @@ export class DashboardService {
       take: limit,
     });
 
-    return similarProperties.map((prop) => ({
+    return similarProperties.map((prop: any) => ({
       id: prop.id,
       title: prop.title,
       address: prop.address,

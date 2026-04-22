@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { TrustScoreModule } from './trust-score/trust-score.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SessionsModule } from './sessions/sessions.module';
     AuthModule,
     DashboardModule,
     SessionsModule,
+    TrustScoreModule,
   ],
   controllers: [AppController],
 })

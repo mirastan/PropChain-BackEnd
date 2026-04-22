@@ -73,6 +73,8 @@ model User {
   twoFactorSecret  String? @map("two_factor_secret")
   twoFactorBackupCodes String[] @default([]) @map("two_factor_backup_codes")
   avatar        String?
+  trustScore    Int       @default(0) @map("trust_score")
+  lastTrustScoreUpdate DateTime? @map("last_trust_score_update")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { SessionDto, SessionsListDto, RevokeSessionDto, RevokeAllSessionsDto } from './dto/session.dto';
+import {
+  SessionDto,
+  SessionsListDto,
+  RevokeSessionDto,
+  RevokeAllSessionsDto,
+} from './dto/session.dto';
 
 @Injectable()
 export class SessionsService {
@@ -42,11 +47,11 @@ export class SessionsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const activeSessions = sessions.filter((s) => !s.isRevoked && s.expiresAt > new Date());
-    const revokedSessions = sessions.filter((s) => s.isRevoked);
+    const activeSessions = sessions.filter((s: any) => !s.isRevoked && s.expiresAt > new Date());
+    const revokedSessions = sessions.filter((s: any) => s.isRevoked);
 
     return {
-      sessions: sessions.map((s) => this.mapSessionToDto(s)),
+      sessions: sessions.map((s: any) => this.mapSessionToDto(s)),
       activeCount: activeSessions.length,
       revokedCount: revokedSessions.length,
     };
