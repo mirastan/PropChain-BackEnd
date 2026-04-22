@@ -50,6 +50,15 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  logoutAllDevices(
+    @CurrentUser() user: AuthUserPayload,
+    @Req() request: { accessToken?: string },
+  ) {
+    return this.authService.logoutAllDevices(user, request.accessToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: AuthUserPayload) {
     return this.authService.me(user);
