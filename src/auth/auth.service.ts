@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiKey, TokenType, User } from '../types/prisma.types';
+import { ApiKey, TokenType, User, UserRole } from '../types/prisma.types';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
@@ -39,8 +39,6 @@ import {
   verifyTotpCode,
 } from './security.utils';
 import { AuthUserPayload } from './types/auth-user.type';
-
-import { UserRole } from '../types/prisma.types';
 
 type JwtPayload = {
   sub: string;
