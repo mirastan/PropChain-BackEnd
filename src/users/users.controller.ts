@@ -12,7 +12,7 @@ import { AuthUserPayload } from '../auth/types/auth-user.type';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
+  // Public endpoint for user registration
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
