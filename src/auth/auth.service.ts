@@ -104,6 +104,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.isBlocked) {
+      throw new UnauthorizedException('Your account has been blocked. Please contact support.');
+    }
+
     const passwordMatches = await comparePassword(data.password, user.password);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
@@ -164,6 +168,10 @@ export class AuthService {
     });
     if (!user) {
       throw new UnauthorizedException('User no longer exists');
+    }
+
+    if (user.isBlocked) {
+      throw new UnauthorizedException('Your account has been blocked');
     }
 
     if (user.id !== payload.sub) {
@@ -489,6 +497,10 @@ export class AuthService {
 
     if (!apiKey || apiKey.revokedAt || (apiKey.expiresAt && apiKey.expiresAt < new Date())) {
       throw new UnauthorizedException('Invalid API key');
+    }
+
+    if (apiKey.user.isBlocked) {
+      throw new UnauthorizedException('User account is blocked');
     }
 
     await this.prisma.apiKey.update({
