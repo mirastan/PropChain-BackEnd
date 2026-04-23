@@ -46,11 +46,7 @@ export class ActivityLogService {
     });
   }
 
-  async findAllForAdmin(
-    page = 1,
-    limit = 20,
-    filters?: GetActivityLogsDto & { userId?: string },
-  ) {
+  async findAllForAdmin(page = 1, limit = 20, filters?: GetActivityLogsDto & { userId?: string }) {
     const skip = (page - 1) * limit;
     const { action, entityType, startDate, endDate, userId } = filters || {};
 

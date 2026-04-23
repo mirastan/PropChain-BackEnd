@@ -10,10 +10,7 @@ export class ActivityLogController {
   constructor(private readonly activityLogService: ActivityLogService) {}
 
   @Get()
-  getActivityLogs(
-    @CurrentUser() user: any,
-    @Query() filters: GetActivityLogsDto,
-  ) {
+  getActivityLogs(@CurrentUser() user: any, @Query() filters: GetActivityLogsDto) {
     return this.activityLogService.findByUserId(user.id, filters);
   }
 }

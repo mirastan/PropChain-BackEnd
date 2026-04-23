@@ -15,18 +15,12 @@ export class UserPreferencesController {
   }
 
   @Post()
-  createPreferences(
-    @CurrentUser() user: any,
-    @Body() createDto: CreateUserPreferencesDto,
-  ) {
+  createPreferences(@CurrentUser() user: any, @Body() createDto: CreateUserPreferencesDto) {
     return this.preferencesService.create(user.id, createDto);
   }
 
   @Put()
-  updatePreferences(
-    @CurrentUser() user: any,
-    @Body() updateDto: UpdateUserPreferencesDto,
-  ) {
+  updatePreferences(@CurrentUser() user: any, @Body() updateDto: UpdateUserPreferencesDto) {
     return this.preferencesService.update(user.id, updateDto);
   }
 
