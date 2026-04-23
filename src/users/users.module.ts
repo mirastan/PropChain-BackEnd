@@ -9,6 +9,8 @@ import { ActivityLogController, AdminActivityLogController } from './activity-lo
 import { AvatarUploadController } from './avatar-upload.controller';
 import { AvatarUploadService } from './avatar-upload.service';
 import { ScheduledDeletionService } from './scheduled-deletion.service';
+import { UserImportController } from './user-import.controller';
+import { UserImportService } from './user-import.service';
 import { PrismaModule } from '../database/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
@@ -16,17 +18,22 @@ import { AuthModule } from '../auth/auth.module';
   imports: [PrismaModule, AuthModule, ScheduleModule.forRoot()],
   controllers: [
     UsersController,
+    AvatarUploadController, 
+    UserImportController,
     UserPreferencesController,
     ActivityLogController,
     AdminActivityLogController,
   ],
   providers: [
     UsersService,
+    AvatarUploadService, 
+    ScheduledDeletionService, 
+    UserImportService,
     UserPreferencesService,
     ActivityLogService,
     UsersController,
     AvatarUploadController
   ],
-  exports: [UsersService, UserPreferencesService, ActivityLogService, AvatarUploadService, ScheduledDeletionService],
+  exports: [UsersService, AvatarUploadService, ScheduledDeletionService, UserImportService, UserPreferencesService, ActivityLogService, AvatarUploadService, ScheduledDeletionService],
 })
 export class UsersModule {}
