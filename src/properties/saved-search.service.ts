@@ -1,5 +1,6 @@
 import { Injectable, Logger, Cron, CronExpression } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { CreateSavedSearchDto, UpdateSavedSearchDto } from './dto/saved-search.dto';
 
 @Injectable()
 export class SavedSearchAlertService {
@@ -12,7 +13,24 @@ export class SavedSearchAlertService {
    */
   async findNewMatches(savedSearchId: string): Promise<{
     savedSearchId: string;
-    newMatches: any[];
+    newMatches: Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      address: string;
+      city: string;
+      state: string;
+      price: string | number | bigint;
+      propertyType: string;
+      status: string;
+      createdAt: Date | string;
+      owner?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+      };
+    }>;
     totalMatches: number;
   }> {
     const savedSearch = await this.prisma.savedSearch.findUnique({
@@ -36,10 +54,10 @@ export class SavedSearchAlertService {
     // Build query from saved criteria
     const criteria = savedSearch.criteria as any;
     const filters = criteria?.filters || {};
-    
+
     // Build search query
-    const where: any = {};
-    
+    const where: Record<string, unknown> = {};
+
     // Apply filters from saved criteria
     if (filters.query) {
       where.OR = [
@@ -98,7 +116,9 @@ export class SavedSearchAlertService {
 
     // Order by date
     const sortOptions = criteria?.sort || { field: 'createdAt', direction: 'desc' };
-    const orderBy: any = { [sortOptions.field || 'createdAt']: sortOptions.direction || 'desc' };
+    const orderBy: Record<string, 'asc' | 'desc'> = { 
+      [sortOptions.field || 'createdAt']: sortOptions.direction || 'desc' 
+    };
 
     // Fetch new properties
     const newProperties = await this.prisma.property.findMany({
@@ -212,11 +232,11 @@ export class SavedSearchAlertService {
     for (const savedSearch of activeSearches) {
       try {
         const { newMatches } = await this.findNewMatches(savedSearch.id);
-        
+
         if (newMatches.length > 0) {
           const propertyIds = newMatches.map((p) => p.id);
           await this.createAlertsForMatches(savedSearch.id, propertyIds);
-          
+
           this.logger.log(`Found ${newMatches.length} new matches for search ${savedSearch.id}`);
         }
       } catch (error) {
@@ -273,12 +293,14 @@ export class SavedSearchService {
   /**
    * Create a new saved search
    */
-  async create(createDto: any, userId: string): Promise<any> {
+  async create(createDto: CreateSavedSearchDto, userId: string): Promise<SavedSearchResponse> {
     return this.prisma.savedSearch.create({
       data: {
-        ...createDto,
-        userId,
+        name: createDto.name,
+        description: createDto.description,
         criteria: createDto.criteria,
+        isActive: true,
+        alertEnabled: createDto.alertEnabled ?? true,
         lastRunAt: new Date(),
       },
       include: {
@@ -291,13 +313,13 @@ export class SavedSearchService {
           },
         },
       },
-    });
+    }) as any; // Cast to any pending proper Prisma types
   }
 
   /**
    * Get all saved searches for a user
    */
-  async findByUser(userId: string, includeAlerts: boolean = false): Promise<any[]> {
+  async findByUser(userId: string, includeAlerts: boolean = false): Promise<SavedSearchResponse[]> {
     return this.prisma.savedSearch.findMany({
       where: { userId },
       include: {
@@ -327,14 +349,14 @@ export class SavedSearchService {
         }),
       },
       orderBy: { updatedAt: 'desc' },
-    });
+    }) as any[];
   }
 
   /**
    * Find by ID
    */
-  async findById(id: string, userId?: string): Promise<any> {
-    const where: any = { id };
+  async findById(id: string, userId?: string): Promise<SavedSearchResponse | null> {
+    const where: Record<string, string> = { id };
     if (userId) {
       where.userId = userId;
     }
@@ -365,13 +387,13 @@ export class SavedSearchService {
           },
         },
       },
-    });
+    }) as SavedSearchResponse | null;
   }
 
   /**
    * Update saved search
    */
-  async update(id: string, updateDto: any, userId: string): Promise<any> {
+  async update(id: string, updateDto: UpdateSavedSearchDto, userId: string): Promise<SavedSearchResponse> {
     const existing = await this.findById(id, userId);
     if (!existing) {
       throw new Error('Saved search not found');
@@ -390,7 +412,7 @@ export class SavedSearchService {
           },
         },
       },
-    });
+    }) as any;
   }
 
   /**

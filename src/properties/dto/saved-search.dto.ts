@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsArray, IsObject, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsObject } from 'class-validator';
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
 
 @InputType()
@@ -14,7 +14,7 @@ export class CreateSavedSearchDto {
 
   @Field(() => Object)
   @IsObject()
-  criteria: any; // JSON search criteria
+  criteria: Record<string, unknown>;
 
   @Field({ nullable: true, defaultValue: true })
   @IsOptional()
@@ -37,7 +37,7 @@ export class UpdateSavedSearchDto {
   @Field(() => Object, { nullable: true })
   @IsOptional()
   @IsObject()
-  criteria?: any;
+  criteria?: Record<string, unknown>;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -62,7 +62,7 @@ export class SavedSearchResponse {
   description?: string;
 
   @Field(() => Object)
-  criteria: any;
+  criteria: Record<string, unknown>;
 
   @Field()
   isActive: boolean;
@@ -80,7 +80,7 @@ export class SavedSearchResponse {
   updatedAt: Date;
 
   @Field(() => Int, { nullable: true })
-  matchCount?: number; // Number of matching properties when last run
+  matchCount?: number;
 
   @Field(() => [SearchAlertItem], { nullable: true })
   recentAlerts?: SearchAlertItem[];
@@ -110,10 +110,36 @@ export class RunSavedSearchResult {
   savedSearchId: string;
 
   @Field(() => Int)
-  newMatches: number; // New properties matching the criteria since last run
+  newMatches: number;
 
   @Field(() => [SearchResultItem])
-  properties: any[]; // SearchResultItem
+  properties: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    price: number;
+    propertyType: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    squareFeet?: number;
+    lotSize?: number;
+    yearBuilt?: number;
+    features?: string[];
+    location?: [number, number];
+    status: string;
+    createdAt: Date;
+    owner?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  }>;
 
   @Field()
   totalMatches: number;
@@ -142,7 +168,7 @@ export class ManageSavedSearchRequest {
 
   @Field(() => Object)
   @IsObject()
-  criteria: any;
+  criteria: Record<string, unknown>;
 
   @Field({ nullable: true, defaultValue: true })
   @IsOptional()

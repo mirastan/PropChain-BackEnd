@@ -1,25 +1,40 @@
-import { Injectable, Logger, CacheInterceptor, CacheKey, CacheTTL, UseInterceptors } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  CacheInterceptor,
+  CacheKey,
+  CacheTTL,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Inject, Scope } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
 import { PrismaService } from '../database/prisma.service';
 import { CacheService } from '../cache/cache.service';
-import { 
-  CreatePropertyDto, 
-  UpdatePropertyDto, 
-  SearchCriteriaDto, 
+import { Decimal } from '@prisma/client/runtime/library';
+import {
+  CreatePropertyDto,
+  UpdatePropertyDto,
+  SearchCriteriaDto,
   PropertySearchFilters,
   CursorPaginationInput,
   SearchSortOptions,
   SearchResultItem,
   PaginatedSearchResponse,
   PROPERTY_SORT_FIELDS,
-  SORT_DIRECTION
+  SORT_DIRECTION,
 } from './dto/search.dto';
-import { plainToInstance } from 'class-transformer';
-import { validateSync } from 'class-validator';
 
 type PropertySortField = (typeof PROPERTY_SORT_FIELDS)[number];
 type SortDirection = (typeof SORT_DIRECTION)[number];
+type SearchQuery = {
+  where: Record<string, unknown>;
+  orderBy: Record<string, 'asc' | 'desc'>;
+  include: Record<string, unknown>;
+  select?: Record<string, boolean>;
+  take?: number;
+};
+
+type WhereCondition = Record<string, any>;
+type IncludeCondition = Record<string, any>;
 
 @Injectable({ scope: Scope.DEFAULT })
 export class PropertiesService {
@@ -41,7 +56,7 @@ export class PropertiesService {
     // Validate and normalize inputs
     const validatedFilters = this.normalizeFilters(filters);
     const validatedPagination = pagination || { limit: this.DEFAULT_LIMIT };
-    
+
     // Build sort configuration
     const sortConfig = this.buildSortConfig(sort);
 
@@ -57,11 +72,11 @@ export class PropertiesService {
 
     // Build optimized query
     const query = this.buildSearchQuery(validatedFilters, sortConfig, includeTotalCount);
-    
+
     // Apply cursor pagination
     const { results, nextCursor, hasNextPage, totalCount } = await this.executePaginatedQuery(
       query,
-      validatedPagination
+      validatedPagination,
     );
 
     const response: PaginatedSearchResponse = {
@@ -95,7 +110,7 @@ export class PropertiesService {
   @UseInterceptors(CacheInterceptor)
   @CacheKey('search')
   @CacheTTL(300)
-  async cachedSearch(@Inject(REQUEST) req: any, criteria: SearchCriteriaDto): Promise<PaginatedSearchResponse> {
+  async cachedSearch(@Inject(REQUEST) req: unknown, criteria: SearchCriteriaDto): Promise<PaginatedSearchResponse> {
     return this.search(criteria);
   }
 
@@ -103,7 +118,7 @@ export class PropertiesService {
    * Execute search with cursor pagination
    */
   private async executePaginatedQuery(
-    baseQuery: any,
+    baseQuery: SearchQuery,
     pagination: CursorPaginationInput,
   ): Promise<{
     results: SearchResultItem[];
@@ -112,10 +127,7 @@ export class PropertiesService {
     totalCount: number | null;
   }> {
     const { cursor, limit } = pagination;
-    const validatedLimit = Math.min(
-      limit || this.DEFAULT_LIMIT,
-      this.MAX_LIMIT,
-    );
+    const validatedLimit = Math.min(limit || this.DEFAULT_LIMIT, this.MAX_LIMIT);
 
     // Build cursor condition if provided
     if (cursor) {
@@ -141,9 +153,7 @@ export class PropertiesService {
     }
 
     // Generate next cursor from last item
-    const nextCursor = hasMore && results.length > 0 
-      ? results[results.length - 1].id 
-      : undefined;
+    const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : undefined;
 
     // Get total count if requested
     let totalCount: number | null = null;
@@ -169,9 +179,9 @@ export class PropertiesService {
     filters: PropertySearchFilters,
     sortConfig: { field: PropertySortField; direction: SortDirection },
     includeCount: boolean,
-  ): any {
-    const where: any = {};
-    const include: any = {
+  ): SearchQuery {
+    const where: Record<string, unknown> = {};
+    const include: Record<string, unknown> = {
       owner: {
         select: {
           id: true,
@@ -279,7 +289,10 @@ export class PropertiesService {
   /**
    * Build sort configuration
    */
-  private buildSortConfig(sort?: SearchSortOptions): { field: PropertySortField; direction: SortDirection } {
+  private buildSortConfig(sort?: SearchSortOptions): {
+    field: PropertySortField;
+    direction: SortDirection;
+  } {
     return {
       field: sort?.field || 'createdAt',
       direction: sort?.direction || 'desc',
@@ -305,7 +318,7 @@ export class PropertiesService {
   /**
    * Simple hash for objects (in production, use a robust hash like SHA256)
    */
-  private hashObject(obj: any): string {
+  private hashObject(obj: unknown): string {
     const str = JSON.stringify(obj);
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -313,6 +326,81 @@ export class PropertiesService {
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash;
     }
+    return hash.toString(36);
+  }
+
+  /**
+   * Normalize and validate filters
+   */
+  private normalizeFilters(filters: PropertySearchFilters): PropertySearchFilters {
+    // Remove empty/undefined arrays
+    if (filters.cities?.length === 0) delete filters.cities;
+    if (filters.states?.length === 0) delete filters.states;
+    if (filters.propertyTypes?.length === 0) delete filters.propertyTypes;
+    if (filters.features?.length === 0) delete filters.features;
+
+    return filters;
+  }
+
+  /**
+   * Map Prisma results to DTO
+   */
+  private mapToSearchResultItem(properties: Array<{
+    id: string;
+    title: string;
+    description?: string | null;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    price: string | number | bigint;
+    propertyType: string;
+    bedrooms?: number | null;
+    bathrooms?: string | number | bigint | null;
+    squareFeet?: string | number | bigint | null;
+    lotSize?: string | number | bigint | null;
+    yearBuilt?: number | null;
+    features?: string[] | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    status: string;
+    createdAt: Date | string;
+    owner?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+  }>): SearchResultItem[] {
+    return properties.map((prop) => ({
+      id: prop.id,
+      title: prop.title,
+      description: prop.description || undefined,
+      address: prop.address,
+      city: prop.city,
+      state: prop.state,
+      zipCode: prop.zipCode,
+      country: prop.country,
+      price: parseFloat(prop.price.toString()),
+      propertyType: prop.propertyType,
+      bedrooms: prop.bedrooms ?? undefined,
+      bathrooms: parseFloat(prop.bathrooms?.toString() || '0'),
+      squareFeet: parseFloat(prop.squareFeet?.toString() || '0'),
+      lotSize: parseFloat(prop.lotSize?.toString() || '0'),
+      yearBuilt: prop.yearBuilt ?? undefined,
+      features: prop.features || undefined,
+      location: (prop.latitude && prop.longitude) ? [prop.longitude, prop.latitude] : undefined,
+      status: prop.status,
+      createdAt: prop.createdAt,
+      owner: prop.owner ? {
+        id: prop.owner.id,
+        firstName: prop.owner.firstName,
+        lastName: prop.owner.lastName,
+        email: prop.owner.email,
+      } : undefined,
+    }));
+  }
     return hash.toString(36);
   }
 
@@ -353,44 +441,46 @@ export class PropertiesService {
       location: prop.latitude && prop.longitude ? [prop.longitude, prop.latitude] : undefined,
       status: prop.status,
       createdAt: prop.createdAt,
-      owner: prop.owner ? {
-        id: prop.owner.id,
-        firstName: prop.owner.firstName,
-        lastName: prop.owner.lastName,
-        email: prop.owner.email,
-      } : undefined,
+      owner: prop.owner
+        ? {
+            id: prop.owner.id,
+            firstName: prop.owner.firstName,
+            lastName: prop.owner.lastName,
+            email: prop.owner.email,
+          }
+        : undefined,
     }));
   }
 
   // ==================== Existing Methods ====================
 
-  async create(createPropertyDto: CreatePropertyDto, ownerId: string) {
-    const { price, squareFeet, lotSize, ...rest } = createPropertyDto;
+   async create(createPropertyDto: CreatePropertyDto, ownerId: string) {
+     const { price, squareFeet, lotSize, ...rest } = createPropertyDto;
 
-    return this.prisma.property.create({
-      data: {
-        ...rest,
-        price: new (require('@prisma/client/runtime/library').Decimal)(price.toString()),
-        squareFeet: squareFeet ? new (require('@prisma/client/runtime/library').Decimal)(squareFeet.toString()) : null,
-        lotSize: lotSize ? new (require('@prisma/client/runtime/library').Decimal)(lotSize.toString()) : null,
-        owner: {
-          connect: { id: ownerId },
-        },
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
-  }
+     return this.prisma.property.create({
+       data: {
+         ...rest,
+         price: new Decimal(price.toString()),
+         squareFeet: squareFeet ? new Decimal(squareFeet.toString()) : null,
+         lotSize: lotSize ? new Decimal(lotSize.toString()) : null,
+         owner: {
+           connect: { id: ownerId },
+         },
+       },
+       include: {
+         owner: {
+           select: {
+             id: true,
+             firstName: true,
+             lastName: true,
+             email: true,
+           },
+         },
+       },
+     });
+   }
 
-  async findAll(params?: any) {
+  async findAll(params?: { skip?: number; take?: number; where?: Record<string, unknown>; orderBy?: Record<string, 'asc' | 'desc'> }) {
     const { skip, take, where, orderBy } = params || {};
     return this.prisma.property.findMany({
       skip,
@@ -427,19 +517,19 @@ export class PropertiesService {
     });
   }
 
-  async update(id: string, updatePropertyDto: UpdatePropertyDto) {
-    const { price, squareFeet, lotSize, ...rest } = updatePropertyDto;
+   async update(id: string, updatePropertyDto: UpdatePropertyDto) {
+     const { price, squareFeet, lotSize, ...rest } = updatePropertyDto;
 
-    return this.prisma.property.update({
-      where: { id },
-      data: {
-        ...rest,
-        price: price ? new (require('@prisma/client/runtime/library').Decimal)(price.toString()) : undefined,
-        squareFeet: squareFeet ? new (require('@prisma/client/runtime/library').Decimal)(squareFeet.toString()) : undefined,
-        lotSize: lotSize ? new (require('@prisma/client/runtime/library').Decimal)(lotSize.toString()) : undefined,
-      },
-    });
-  }
+     return this.prisma.property.update({
+       where: { id },
+       data: {
+         ...rest,
+         price: price ? new Decimal(price.toString()) : undefined,
+         squareFeet: squareFeet ? new Decimal(squareFeet.toString()) : undefined,
+         lotSize: lotSize ? new Decimal(lotSize.toString()) : undefined,
+       },
+     });
+   }
 
   async remove(id: string) {
     return this.prisma.property.delete({

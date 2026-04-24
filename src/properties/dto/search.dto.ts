@@ -1,4 +1,13 @@
-import { IsOptional, IsNumber, IsString, IsBoolean, IsArray, IsIn, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsNumber,
+  IsString,
+  IsBoolean,
+  IsArray,
+  IsIn,
+  Min,
+  Max,
+} from 'class-validator';
 import { InputType, Field, Float, ID, Int } from '@nestjs/graphql';
 import { Type } from 'class-transformer';
 import { ValidateIf } from 'class-validator';

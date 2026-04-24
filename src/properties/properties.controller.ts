@@ -8,14 +8,10 @@ import {
   Delete,
   UseGuards,
   Query,
-  Request,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
-import {
-  SearchCriteriaDto,
-  PaginatedSearchResponse,
-  SearchResultItem,
-} from './dto/search.dto';
+import { SearchCriteriaDto, PaginatedSearchResponse } from './dto/search.dto';
+import { CreatePropertyDto, UpdatePropertyDto } from './dto/property.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUserPayload } from '../auth/types/auth-user.type';
@@ -137,20 +133,17 @@ export class PropertiesController {
    */
   @Post('saved-searches/:id/run')
   @UseGuards(JwtAuthGuard)
-  async runSavedSearch(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUserPayload,
-  ) {
-    const result = await this.savedSearchService.runSearch(id, user.sub);
-    
-    // Create alerts for matches
-    if (result.newMatches.length > 0) {
-      const propertyIds = result.newMatches.map((p: any) => p.id);
-      await this.savedSearchAlertService.createAlertsForMatches(id, propertyIds);
-    }
+   async runSavedSearch(@Param('id') id: string, @CurrentUser() user: AuthUserPayload) {
+     const result = await this.savedSearchService.runSearch(id, user.sub);
 
-    return result;
-  }
+     // Create alerts for matches
+     if (result.newMatches.length > 0) {
+       const propertyIds = result.newMatches.map((p: { id: string }) => p.id);
+       await this.savedSearchAlertService.createAlertsForMatches(id, propertyIds);
+     }
+
+     return result;
+   }
 
   /**
    * Duplicate saved search
@@ -174,9 +167,7 @@ export class PropertiesController {
    */
   @Get('alerts/unread')
   @UseGuards(JwtAuthGuard)
-  async getUnreadAlerts(
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async getUnreadAlerts(@CurrentUser() user: AuthUserPayload) {
     return this.savedSearchAlertService.getUnnotifiedAlerts(user.sub);
   }
 
@@ -199,35 +190,33 @@ export class PropertiesController {
    */
   @Get('search/stats')
   @UseGuards(JwtAuthGuard)
-  async getSearchStats(
-    @CurrentUser() user: AuthUserPayload,
-  ) {
+  async getSearchStats(@CurrentUser() user: AuthUserPayload) {
     return this.savedSearchAlertService.getSearchStats(user.sub);
   }
 
   // ==================== Existing CRUD Methods ====================
 
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() createPropertyDto: any, @CurrentUser() user: AuthUserPayload) {
-    return this.propertiesService.create(createPropertyDto, user.sub);
-  }
+   @Post()
+   @UseGuards(JwtAuthGuard)
+   create(@Body() createPropertyDto: CreatePropertyDto, @CurrentUser() user: AuthUserPayload) {
+     return this.propertiesService.create(createPropertyDto, user.sub);
+   }
 
-  @Get()
-  findAll(@Query() params?: any) {
-    return this.propertiesService.findAll(params);
-  }
+   @Get()
+   findAll(@Query() params?: { skip?: number; take?: number; where?: Record<string, unknown>; orderBy?: Record<string, 'asc' | 'desc'> }) {
+     return this.propertiesService.findAll(params);
+   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.propertiesService.findOne(id);
-  }
+   @Get(':id')
+   findOne(@Param('id') id: string) {
+     return this.propertiesService.findOne(id);
+   }
 
-  @Put(':id')
-  @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() updatePropertyDto: any) {
-    return this.propertiesService.update(id, updatePropertyDto);
-  }
+   @Put(':id')
+   @UseGuards(JwtAuthGuard)
+   update(@Param('id') id: string, @Body() updatePropertyDto: UpdatePropertyDto) {
+     return this.propertiesService.update(id, updatePropertyDto);
+   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)

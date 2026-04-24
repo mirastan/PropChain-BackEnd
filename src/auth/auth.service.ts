@@ -508,65 +508,64 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-     const [buyerTransactions, sellerTransactions, documents, apiKeys] =
-       await Promise.all([
-         this.prisma.transaction.findMany({
-          where: { buyerId: user.sub },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          include: {
-            property: {
-              select: {
-                id: true,
-                title: true,
-                address: true,
-                city: true,
-                state: true,
-                price: true,
-              },
-            },
-            seller: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
+    const [buyerTransactions, sellerTransactions, documents, apiKeys] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { buyerId: user.sub },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          property: {
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              city: true,
+              state: true,
+              price: true,
             },
           },
-        }),
-        this.prisma.transaction.findMany({
-          where: { sellerId: user.sub },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          include: {
-            property: {
-              select: {
-                id: true,
-                title: true,
-                address: true,
-                city: true,
-                state: true,
-                price: true,
-              },
-            },
-            buyer: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
+          seller: {
+            select: {
+              firstName: true,
+              lastName: true,
             },
           },
-        }),
-        this.prisma.document.findMany({
-          where: { userId: user.sub },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        }),
-        this.prisma.apiKey.findMany({
-          where: { userId: user.sub },
-          orderBy: { createdAt: 'desc' },
-          take: 3,
-        }),
-      ]);
+        },
+      }),
+      this.prisma.transaction.findMany({
+        where: { sellerId: user.sub },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          property: {
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              city: true,
+              state: true,
+              price: true,
+            },
+          },
+          buyer: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      }),
+      this.prisma.document.findMany({
+        where: { userId: user.sub },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.apiKey.findMany({
+        where: { userId: user.sub },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      }),
+    ]);
 
     const [
       totalProperties,
@@ -606,17 +605,24 @@ export class AuthService {
       },
     });
 
-     const recentActivity = [
-       ...this.transactionsToActivityItems(buyerTransactions, 'purchase'),
-       ...this.transactionsToActivityItems(sellerTransactions, 'sale'),
-       ...documents.map((doc: { id: string; fileName: string; documentType: string; createdAt: Date | string }) => ({
-         type: 'document' as const,
-         id: doc.id,
-         title: doc.fileName,
-         description: `Uploaded ${doc.documentType.toLowerCase().replace('_', ' ')}`,
-         timestamp: doc.createdAt,
-       })),
-     ]
+    const recentActivity = [
+      ...this.transactionsToActivityItems(buyerTransactions, 'purchase'),
+      ...this.transactionsToActivityItems(sellerTransactions, 'sale'),
+      ...documents.map(
+        (doc: {
+          id: string;
+          fileName: string;
+          documentType: string;
+          createdAt: Date | string;
+        }) => ({
+          type: 'document' as const,
+          id: doc.id,
+          title: doc.fileName,
+          description: `Uploaded ${doc.documentType.toLowerCase().replace('_', ' ')}`,
+          timestamp: doc.createdAt,
+        }),
+      ),
+    ]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10);
 
@@ -633,35 +639,37 @@ export class AuthService {
         apiKeysCount: apiKeys.length,
       },
       recentActivity,
-       recommendations: recommendationProperties.map((p: {
-         id: string;
-         title: string;
-         address: string;
-         city: string;
-         state: string;
-         price: string | number | bigint;
-         propertyType: string;
-         bedrooms?: number | null;
-         bathrooms?: string | number | bigint | null;
-         squareFeet?: string | number | bigint | null;
-         status: string;
-         owner: { firstName: string; lastName: string };
-         createdAt: Date | string;
-       }) => ({
-         id: p.id,
-         title: p.title,
-         address: p.address,
-         city: p.city,
-         state: p.state,
-         price: p.price.toString(),
-         propertyType: p.propertyType,
-         bedrooms: p.bedrooms,
-         bathrooms: p.bathrooms?.toString(),
-         squareFeet: p.squareFeet?.toString(),
-         status: p.status,
-         agent: `${p.owner.firstName} ${p.owner.lastName}`,
-         createdAt: p.createdAt,
-       })),
+      recommendations: recommendationProperties.map(
+        (p: {
+          id: string;
+          title: string;
+          address: string;
+          city: string;
+          state: string;
+          price: string | number | bigint;
+          propertyType: string;
+          bedrooms?: number | null;
+          bathrooms?: string | number | bigint | null;
+          squareFeet?: string | number | bigint | null;
+          status: string;
+          owner: { firstName: string; lastName: string };
+          createdAt: Date | string;
+        }) => ({
+          id: p.id,
+          title: p.title,
+          address: p.address,
+          city: p.city,
+          state: p.state,
+          price: p.price.toString(),
+          propertyType: p.propertyType,
+          bedrooms: p.bedrooms,
+          bathrooms: p.bathrooms?.toString(),
+          squareFeet: p.squareFeet?.toString(),
+          status: p.status,
+          agent: `${p.owner.firstName} ${p.owner.lastName}`,
+          createdAt: p.createdAt,
+        }),
+      ),
     };
   }
 
@@ -847,14 +855,14 @@ export class AuthService {
     };
   }
 
-   async listApiKeys(user: AuthUserPayload) {
-     const apiKeys = await this.prisma.apiKey.findMany({
-       where: { userId: user.sub },
-       orderBy: { createdAt: 'desc' },
-     });
+  async listApiKeys(user: AuthUserPayload) {
+    const apiKeys = await this.prisma.apiKey.findMany({
+      where: { userId: user.sub },
+      orderBy: { createdAt: 'desc' },
+    });
 
-     return apiKeys.map((apiKey) => this.toApiKeyResponse(apiKey));
-   }
+    return apiKeys.map((apiKey) => this.toApiKeyResponse(apiKey));
+  }
 
   async rotateApiKey(user: AuthUserPayload, apiKeyId: string) {
     const apiKey = await this.prisma.apiKey.findFirst({
@@ -1152,20 +1160,20 @@ export class AuthService {
     return `pc_${randomToken(24)}`;
   }
 
-   private toApiKeyResponse(apiKey: ApiKeyWithSecrets) {
-     return {
-       id: apiKey.id,
-       name: apiKey.name,
-       keyPrefix: apiKey.keyPrefix,
-       permissions: apiKey.permissions,
-       usageCount: apiKey.usageCount,
-       lastUsedAt: apiKey.lastUsedAt,
-       expiresAt: apiKey.expiresAt,
-       revokedAt: apiKey.revokedAt,
-       createdAt: apiKey.createdAt,
-       updatedAt: apiKey.updatedAt,
-     };
-   }
+  private toApiKeyResponse(apiKey: ApiKeyWithSecrets) {
+    return {
+      id: apiKey.id,
+      name: apiKey.name,
+      keyPrefix: apiKey.keyPrefix,
+      permissions: apiKey.permissions,
+      usageCount: apiKey.usageCount,
+      lastUsedAt: apiKey.lastUsedAt,
+      expiresAt: apiKey.expiresAt,
+      revokedAt: apiKey.revokedAt,
+      createdAt: apiKey.createdAt,
+      updatedAt: apiKey.updatedAt,
+    };
+  }
 
   private normalizePermissions(permissions?: string[]) {
     if (!permissions || permissions.length === 0) {
@@ -1283,13 +1291,13 @@ export class AuthService {
         skip: passwordHistoryLimit,
       });
 
-       if (historyEntries.length > 0) {
-         await tx.passwordHistory.deleteMany({
-           where: {
-             id: { in: historyEntries.map((entry: { id: string }) => entry.id) },
-           },
-         });
-       }
+      if (historyEntries.length > 0) {
+        await tx.passwordHistory.deleteMany({
+          where: {
+            id: { in: historyEntries.map((entry: { id: string }) => entry.id) },
+          },
+        });
+      }
     });
   }
 
