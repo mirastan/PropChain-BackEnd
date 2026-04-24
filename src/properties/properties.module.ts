@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PropertiesResolver } from './properties.resolver';
 import { PubSub } from 'graphql-subscriptions';
 import { FraudModule } from '../fraud/fraud.module';
+import { SavedSearchAlertService, SavedSearchService } from './saved-search.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, FraudModule],
