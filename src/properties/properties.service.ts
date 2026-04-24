@@ -12,6 +12,9 @@ interface FindAllParams {
 
 @Injectable()
 export class PropertiesService {
+  private readonly DEFAULT_LIMIT = 20;
+  private readonly MAX_LIMIT = 100;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly fraudService: FraudService,
