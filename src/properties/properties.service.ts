@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreatePropertyDto, UpdatePropertyDto } from './dto/property.dto';
 import { FraudService } from '../fraud/fraud.service';
+import { SearchCriteriaDto, PaginatedSearchResponse, PropertySearchFilters, PropertyWhere, SearchSortOptions, PropertySortField, SearchResultItem } from './dto/search.dto';
 
 interface FindAllParams {
   skip?: number;
